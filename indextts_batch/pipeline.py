@@ -504,7 +504,7 @@ class IndexTTSBatch:
             )
         finally:
             gpt = self.gpt_gen.gpt
-            if gpt is not None and getattr(gpt, "inference_model", None) is not None:
+            if gpt is not None and gpt.inference_model is not None:
                 if hasattr(gpt.inference_model, "clear_mel_emb"):
                     gpt.inference_model.clear_mel_emb()
         t_gpt_end = time.perf_counter()
@@ -660,7 +660,7 @@ class IndexTTSBatch:
             modified = sum(1 for a, b in zip(texts, processed) if a != b)
             texts = processed
             logger.info(f"发音处理完成：{n_orig} 条文本，{modified} 条被修改")
-            self.vram_manager.unload("pronunciation", reason="Phase A 结束")
+            self.vram_manager.unload("pronunciation", reason="多音字读音处理完成")
 
         # Phase B: 情感提取 → 分词 → 装箱
         # 提取说话人/情感音频特征
@@ -687,7 +687,7 @@ class IndexTTSBatch:
 
         # 计算 emovec
         items = self.ref_encoder.compute_emovecs(items, self.speakers)
-        self.vram_manager.unload("ref_encoder", reason="Phase B 结束")
+        self.vram_manager.unload("ref_encoder", reason="音频特征提取完成")
 
         # tokenize → 分段 → 装箱
         batches, batch_stats, indexed_items = self._batch_items(

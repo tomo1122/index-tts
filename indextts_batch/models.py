@@ -436,6 +436,7 @@ class UnifiedVoice(nn.Module):
 
         self.use_accel = use_accel
         self.accel_engine = None
+        self.inference_model: GPT2InferenceModel | None = None
 
     def post_init_gpt2_config(self, use_deepspeed=False, kv_cache=False, half=False):
         seq_length = self.max_mel_tokens + self.max_text_tokens + 2
@@ -524,11 +525,11 @@ class UnifiedVoice(nn.Module):
                         replace_with_kernel_inject=True,
                         dtype=ds_dtype,
                     )
-                    self.inference_model = self.ds_engine
+                    self.inference_model = self.ds_engine  # type: ignore[assignment]
                     logger.info("[GPT自回归解码] DeepSpeed 推理加速已启用")
                 except Exception as e:
                     logger.warning(f"[GPT自回归解码] DeepSpeed 加载失败，回退到普通推理: {e}")
-                    self.inference_model = self.inference_model.eval()
+                    self.inference_model = self.inference_model.eval()  # type: ignore[union-attr]
         else:
             self.inference_model = self.inference_model.eval()
 
@@ -862,6 +863,7 @@ class UnifiedVoice(nn.Module):
         typical_mass=0.9,
         **hf_generate_kwargs,
     ):
+        assert self.inference_model is not None
         if speech_conditioning_latent is None:
             if spk_cond_emb is None:
                 raise ValueError("必须提供 spk_cond_emb 或 speech_conditioning_latent")
@@ -899,7 +901,8 @@ class UnifiedVoice(nn.Module):
         )  # [1, 34, 1280]
 
         input_ids, inputs_embeds, attention_mask = self.prepare_gpt_inputs(conds_latent, text_inputs)
-        self.inference_model.store_mel_emb(inputs_embeds)
+        if hasattr(self.inference_model, "store_mel_emb"):
+            self.inference_model.store_mel_emb(inputs_embeds)
 
         trunc_index = input_ids.shape[1]
         max_length = (

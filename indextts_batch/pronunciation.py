@@ -5,7 +5,6 @@ import shutil
 import time
 from pathlib import Path
 
-import torch
 from g2pw import G2PWConverter
 from opencc import OpenCC
 
@@ -65,9 +64,7 @@ def _patch_g2pw_package(g2pw_model_dir: str | Path) -> None:
                 patched = True
 
         if patched:
-            logger.info(
-                "[Dirty Hack] 使用本地大陆普通话词表覆盖了全局 pip g2pw 包中的台湾国语词表"
-            )
+            logger.info("[Dirty Hack] 使用本地大陆普通话词表覆盖了全局 pip g2pw 包中的台湾国语词表")
     except Exception as e:
         logger.warning(f"[Dirty Hack] 自动替换全局 g2pw 包内词表失败: {e}")
 
@@ -157,13 +154,10 @@ class PronunciationModule:
             mem_used = max(0, free_before - free_after) / 1e9
             used_total = (total - free_after) / 1e9
             logger.info(
-                f"模型加载完成，占用显存：{mem_used:.2f} GB, "
-                f"当前已占用显存：{used_total:.2f} GB, 耗时：{elapsed:.2f}秒"
+                f"模型加载完成，占用显存：{mem_used:.2f} GB, 当前已占用显存：{used_total:.2f} GB, 耗时：{elapsed:.2f}秒"
             )
         else:
-            logger.info(
-                f"模型加载完成（MPS 统一内存，无法统计显存），耗时：{elapsed:.2f}秒"
-            )
+            logger.info(f"模型加载完成（MPS 统一内存，无法统计显存），耗时：{elapsed:.2f}秒")
         return self.conv
 
     def _unload(self):
@@ -207,9 +201,7 @@ class PronunciationModule:
         conv = self._ensure_loaded()
         preds = conv(filtered_texts)
         t_end = time.perf_counter()
-        logger.info(
-            f"g2pW 推理完成，共计 {len(filtered_texts)} 条文本, 耗时 {t_end - t_start:.2f}秒"
-        )
+        logger.info(f"g2pW 推理完成，共计 {len(filtered_texts)} 条文本, 耗时 {t_end - t_start:.2f}秒")
 
         # 步骤三：替换
         results = list(texts)
@@ -225,9 +217,7 @@ class PronunciationModule:
             debug_path.parent.mkdir(parents=True, exist_ok=True)
             with open(debug_path, "w", encoding="utf-8") as f:
                 json.dump(debug_pairs, f, ensure_ascii=False, indent=2)
-            logger.debug(
-                f"发音处理调试信息已保存至 {debug_path}，共 {len(debug_pairs)} 条替换记录。"
-            )
+            logger.debug(f"发音处理调试信息已保存至 {debug_path}，共 {len(debug_pairs)} 条替换记录。")
 
         return results
 
@@ -265,9 +255,7 @@ class PronunciationModule:
         for char, py in zip(sentence, pinyins):
             if char in self.polyphone_chars and py is not None:
                 py_upper: str = py.upper()
-                corrected_py: str = _TAIWAN_TO_MAINLAND_CORRECTIONS.get(
-                    (char, py_upper), py_upper
-                )
+                corrected_py: str = _TAIWAN_TO_MAINLAND_CORRECTIONS.get((char, py_upper), py_upper)
                 new_chars.append(f" {self._correct_pinyin(corrected_py)} ")
             else:
                 new_chars.append(char)
