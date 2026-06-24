@@ -104,7 +104,7 @@ if (-not (Test-Path $modelsDir)) {
     New-Item -ItemType Directory -Path $modelsDir -Force | Out-Null
 }
 
-# 5.1 下载普通话修正版 G2PWModel
+# 3.1 下载普通话修正版 G2PWModel
 $g2pwPath = Join-Path $modelsDir "G2PWModel"
 if (-not (Test-Path $g2pwPath)) {
     Write-Host "正在从国内镜像站下载 G2PWModel (大陆版)..." -ForegroundColor Yellow
@@ -133,7 +133,7 @@ if (-not (Test-Path $g2pwPath)) {
     Write-Host "G2PWModel 目录已存在，跳过下载。" -ForegroundColor Green
 }
 
-# 5.2 下载 BERT 中文基础模型
+# 3.2 下载 BERT 中文基础模型
 $bertPath = Join-Path $modelsDir "bert-base-chinese"
 if (-not (Test-Path $bertPath)) {
     Write-Host "正在下载 bert-base-chinese 模型..." -ForegroundColor Yellow
@@ -175,100 +175,7 @@ if (-not (Test-Path $gptModelPath)) {
 
 
 Write-Host ""
-Write-Host "步骤 5：预下载开源辅助模型到 HF 缓存结构" -ForegroundColor Cyan
-# modules.py 中通过 hf_hub_download / from_pretrained 加载的模型，直接写入
-# HuggingFace Hub 缓存格式：models--{owner}--{name}/snapshots/{rev}/，运行时命中本地缓存。
-$hfCacheDir = "$(Get-Location)/checkpoints/hf_cache"
-$env:HF_HUB_CACHE = $hfCacheDir
-New-Item -ItemType Directory -Path $hfCacheDir -Force | Out-Null
-
-# 确保 modelscope 工具已安装（幂等）
-uv tool install "modelscope" 2>$null
-
-$auxModels = @(
-    @{repo = "facebook/w2v-bert-2.0"; ms = "AI-ModelScope/w2v-bert-2.0"; files = $null}
-    @{repo = "nvidia/bigvgan_v2_22khz_80band_256x"; ms = "nv-community/bigvgan_v2_22khz_80band_256x"; files = @("config.json", "bigvgan_generator.pt")}
-    @{repo = "amphion/MaskGCT"; ms = "amphion/MaskGCT"; files = @("semantic_codec/model.safetensors")}
-    @{repo = "funasr/campplus"; ms = "iic/speech_campplus_sv_zh-cn_16k-common"; files = @("campplus_cn_common.bin")}
-)
-
-foreach ($m in $auxModels) {
-    $repoKey = $m.repo -replace "/", "--"
-    $refsFile = "$hfCacheDir/models--$repoKey/refs/main"
-
-    if (Test-Path $refsFile) {
-        Write-Host "HF 缓存已存在: $($m.repo)，跳过。" -ForegroundColor Green
-        continue
-    }
-
-    # 获取此模型的真实 commit SHA（用于 snaphots 目录名，与 HEAD 请求返回的一致）
-    Write-Host "正在获取 $($m.repo) 的 commit SHA..." -ForegroundColor Yellow
-    $commitHash = $null
-    try {
-        $lsRemote = git ls-remote "https://hf-mirror.com/$($m.repo)" HEAD
-        $commitHash = ($lsRemote -split "`t")[0]
-    } catch {
-        Write-Warning "git ls-remote 失败: $_"
-    }
-    if (-not $commitHash) {
-        Write-Warning "无法获取 $($m.repo) 的 commit SHA，跳过。"
-        continue
-    }
-
-    Write-Host "获取到 commit SHA: $commitHash" -ForegroundColor Green
-    Write-Host "正在从魔搭社区下载 $($m.repo)..." -ForegroundColor Yellow
-
-    # 下载到临时目录
-    $tmpDir = Join-Path $hfCacheDir "_tmp_$($m.repo.Split('/')[-1])"
-    if (Test-Path $tmpDir) { Remove-Item -Path $tmpDir -Recurse -Force }
-    New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
-
-    uvx modelscope download --model $($m.ms) --local_dir $tmpDir
-
-    # 校验下载是否产生文件
-    $fileCount = (Get-ChildItem -Path $tmpDir -Recurse -File).Count
-    if ($fileCount -eq 0) {
-        Write-Warning "$($m.repo) 下载结果为空，跳过。"
-        Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
-        continue
-    }
-
-    # 用真实 commit SHA 作为 snapshot 目录名
-    $snapDir = "$hfCacheDir/models--$repoKey/snapshots/$commitHash"
-    New-Item -ItemType Directory -Path $snapDir -Force | Out-Null
-
-    if ($m.files) {
-        # 仅移动指定文件（如 BigVGAN 只取 config.json 和 bigvgan_generator.pt）
-        foreach ($f in $m.files) {
-            $src = Join-Path $tmpDir $f
-            $dst = Join-Path $snapDir $f
-            $parent = Split-Path $dst -Parent
-            New-Item -ItemType Directory -Path $parent -Force | Out-Null
-            if (Test-Path $src) {
-                Move-Item -Path $src -Destination $dst -Force
-            } else {
-                Write-Warning "文件未在下载中找到: $f"
-            }
-        }
-    } else {
-        # 移动全部文件（如 w2v-bert-2.0 整个仓库）
-        Get-ChildItem -Path $tmpDir | Move-Item -Destination $snapDir -Force
-    }
-
-    # 清理临时目录
-    Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
-
-    # 写入 refs/main，值必须与 snapshot 目录名一致
-    $refsDir = Split-Path $refsFile -Parent
-    New-Item -ItemType Directory -Path $refsDir -Force | Out-Null
-    Set-Content -Path $refsFile -Value $commitHash -NoNewline -Encoding ASCII
-
-    Write-Host "已缓存到 $snapDir" -ForegroundColor Green
-}
-
-
-Write-Host ""
-Write-Host "步骤 6：信息打印" -ForegroundColor Cyan
+Write-Host "步骤 5：信息打印" -ForegroundColor Cyan
 [System.Console]::ForegroundColor = [System.ConsoleColor]::Green
 [System.Console]::WriteLine("环境安装完成，运行 uv run -m indextts_batch.main 进行测试")
 [System.Console]::WriteLine("需要修改参考音频，放到example文件夹下，并且修改 main.py 中的音频路径")
