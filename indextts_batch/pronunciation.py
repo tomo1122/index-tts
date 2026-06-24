@@ -144,8 +144,10 @@ class PronunciationModule:
                 num_workers=0,
                 turnoff_tqdm=True,
             )
+            self.conv.num_workers = 0
             providers = get_onnx_providers(self._device)
             self.conv.session_g2pw.set_providers(providers)
+        logger.info(f"ONNX Runtime providers: {self.conv.session_g2pw.get_providers()}")
 
         elapsed = time.perf_counter() - start_time
         free_after, _ = get_memory_info(self._device)

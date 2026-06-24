@@ -110,10 +110,10 @@ s2mel:
 gpt_checkpoint: gpt.pth
 w2v_stat: wav2vec2bert_stats.pt
 s2mel_checkpoint: s2mel.pth
-emo_matrix: feat2.pt
+emo_matrix: feat2.pt 
 spk_matrix: feat1.pt
 emo_num: [3, 17, 2, 8, 4, 5, 10, 24]
-qwen_emo_path: qwen0.6bemo4-merge/
+qwen_emo_path: qwen0.6bemo4-merge/ 
 vocoder:
     type: "bigvgan"
     name: "nvidia/bigvgan_v2_22khz_80band_256x"

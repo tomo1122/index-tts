@@ -48,7 +48,7 @@ if __name__ == "__main__":
     texts = []
     for key, value in _book.items():
         texts += value
-    texts = texts[:50]  # 只取前50条句子
+    texts = texts[:100]  # 只取前100条句子
     logger.info(f"已加载 {len(texts)} 条句子")
 
     pipeline = IndexTTSBatch(
